@@ -32,6 +32,9 @@ class HConfigBase(ABC):  # pylint: disable=too-many-public-methods
         self.host: Host
 
     def __str__(self) -> str:
+        if self.host.hconfig_options["syntax_style"] == "juniper":
+            children = (c.flatjuniper_style_text() for c in self.all_children())
+            return "\n".join(filter(None, children))
         return "\n".join(c.cisco_style_text() for c in self.all_children())
 
     def __len__(self) -> int:

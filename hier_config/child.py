@@ -158,6 +158,39 @@ class HConfigChild(HConfigBase):
         comments_str = f" !{', '.join(sorted(comments))}" if comments else ""
         return f"{self.indentation}{self.text}{comments_str}"
 
+    def flatjuniper_style_text(
+        self, style: str = "without_comments", tag: Optional[str] = None
+    ) -> Optional[str]:
+        """Return a flatjuniper style formated line i.e. set + text #comments"""
+
+        comments = []
+        if style == "without_comments":
+            pass
+        elif style == "merged":
+            # count the number of instances that have the tag
+            instance_count = 0
+            instance_comments: Set[str] = set()
+            for instance in self.instances:
+                if tag is None or tag in instance["tags"]:
+                    instance_count += 1
+                    instance_comments.update(instance["comments"])
+
+            # should the word 'instance' be plural?
+            word = "instance" if instance_count == 1 else "instances"
+
+            comments.append(f"{instance_count} {word}")
+            comments.extend(instance_comments)
+        elif style == "with_comments":
+            comments.extend(self.comments)
+
+        # this node has children, we'll skip it since it has no meaning on its own
+        if self.children:
+            return None
+
+        comments_str = f" #{', '.join(sorted(comments))}" if comments else ""
+        prefix = "set " if not self.text.startswith(self.options["negation"]) else ""
+        return f"{prefix}{self.text}{comments_str}"
+
     @property
     def indentation(self) -> str:
         return "  " * (self.depth() - 1)
