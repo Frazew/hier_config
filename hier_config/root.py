@@ -137,7 +137,6 @@ class HConfig(HConfigBase):  # pylint: disable=too-many-public-methods
         """Create Hierarchical Configuration nested objects from text"""
         if self.options["syntax_style"] == "juniper":
             config_text = self._cleanup_juniper_style(config_text)
-            print(config_text)
         for sub in self.options["full_text_sub"]:
             config_text = re.sub(sub["search"], sub["replace"], config_text)
 
@@ -454,6 +453,7 @@ class HConfig(HConfigBase):  # pylint: disable=too-many-public-methods
             if stripped_line.startswith(("/*", "#")):
                 continue
 
+            # Handle block start / end
             indent = " " * 4 * len(path)
             if stripped_line.endswith("{"):
                 stripped_line = stripped_line[:-1].strip()
@@ -463,25 +463,17 @@ class HConfig(HConfigBase):  # pylint: disable=too-many-public-methods
             elif stripped_line.endswith("}"):
                 try:
                     path.pop()
+                    continue
                 except IndexError as e:
                     raise ValueError("unexpected extra end of block '}'") from e
-                continue
 
             # the only last possibility: endswith(";")
-            # in that case we split on words and create a deeper tree
-            stripped_line = stripped_line[:-1].strip()
-            full_line = []
-            for i, word in enumerate(re.finditer(r'("[^"]+"|\S+)', stripped_line)):
-                stripped_word = word.group(0).strip()
-                full_line.append(stripped_word)
-                indent = " " * 4 * (len(path) + i)
-                lines.append(indent + stripped_word)
-
-            # fix the last line we added
-            lines[-1] = indent + " ".join(path) + " " + " ".join(full_line)
+            if line.endswith(";"):
+                stripped_line = stripped_line[:-1]
+            lines.append(indent + stripped_line)
 
         if path:
-            raise RuntimeError("unterminated configuration: missing '}'?")
+            raise ValueError("unterminated configuration: missing '}'?")
 
         return "\n".join(lines)
 

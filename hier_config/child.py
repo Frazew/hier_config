@@ -130,6 +130,13 @@ class HConfigChild(HConfigBase):
         for hier_object in self.lineage():
             yield hier_object.text
 
+    def configuration_text(
+        self, style: str = "without_comments", tag: Optional[str] = None
+    ) -> str:
+        if self.host.hconfig_options["syntax_style"] == "juniper":
+            return self.flatjuniper_style_text(style, tag)
+        return self.cisco_style_text(style, tag)
+
     def cisco_style_text(
         self, style: str = "without_comments", tag: Optional[str] = None
     ) -> str:
@@ -187,9 +194,26 @@ class HConfigChild(HConfigBase):
         if self.children:
             return None
 
+        # walk back the tree to get all parents and build the full line
+        path = [""]
+        parent = self.parent
+        while isinstance(parent, HConfigChild):
+            path.append(parent.text)
+            parent = parent.parent
+        parents = " ".join(reversed(path))
+
+        # move set/negation back to the beginning of the line
+        text = self.text
+        negation = self.options["negation"] + " "
+        if text.startswith(negation):
+            text = text.removeprefix(negation)
+            prefix = negation
+        else:
+            text = text.removeprefix("set ")
+            prefix = "set "
+
         comments_str = f" #{', '.join(sorted(comments))}" if comments else ""
-        prefix = "set " if not self.text.startswith(self.options["negation"]) else ""
-        return f"{prefix}{self.text}{comments_str}"
+        return f"{prefix}{parents}{text}{comments_str}"
 
     @property
     def indentation(self) -> str:
